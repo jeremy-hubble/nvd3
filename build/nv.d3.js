@@ -1,4 +1,4 @@
-/* nvd3 version 1.8.1 (https://github.com/novus/nvd3) 2015-06-15 */
+/* nvd3 version 1.8.1 (https://github.com/novus/nvd3) 2015-11-13 */
 (function(){
 
 // set up main nv object
@@ -581,7 +581,8 @@ nv.nearestValueIndex = function (values, searchVal, threshold) {
 
             trowEnter.append("td")
                 .classed("key",true)
-                .html(function(p, i) {return keyFormatter(p.key, i)});
+                .classed("total",function(p) { return !!p.total})
+                .html(function(p, i) { return keyFormatter(p.key, i)});
 
             trowEnter.append("td")
                 .classed("value",true)
@@ -705,7 +706,7 @@ nv.nearestValueIndex = function (values, searchVal, threshold) {
                         tTop = tooltipTop(tooltipElem);
                         break;
                 }
-                
+
                 // adjust tooltip offsets
                 left -= offset.left;
                 top -= offset.top;
@@ -736,7 +737,7 @@ nv.nearestValueIndex = function (values, searchVal, threshold) {
                         .styleTween('transform', function (d) {
                             return translateInterpolator;
                         }, 'important')
-                        // Safari has its own `-webkit-transform` and does not support `transform` 
+                        // Safari has its own `-webkit-transform` and does not support `transform`
                         // transform tooltip without transition only in Safari
                         .style('-webkit-transform', new_translate)
                         .style('opacity', 1);
@@ -1616,13 +1617,14 @@ nv.models.axis = function() {
             switch (axis.orient()) {
                 case 'top':
                     axisLabel.enter().append('text').attr('class', 'nv-axislabel');
-                    if (scale.range().length < 2) {
-                        w = 0;
-                    } else if (scale.range().length === 2) {
-                        w = scale.range()[1];
-                    } else {
-                        w = scale.range()[scale.range().length-1]+(scale.range()[1]-scale.range()[0]);
-                    }
+                  w = 0;
+                  if (scale.range().length === 1) {
+                    w = isOrdinal ? scale.range()[0] * 2 + scale.rangeBand() : 0;
+                  } else if (scale.range().length === 2) {
+                    w = isOrdinal ? scale.range()[0] + scale.range()[1] + scale.rangeBand() : scale.range()[1];
+                  } else if ( scale.range().length > 2){
+                    w = scale.range()[scale.range().length-1]+(scale.range()[1]-scale.range()[0]);
+                  };
                     axisLabel
                         .attr('text-anchor', 'middle')
                         .attr('y', 0)
@@ -1676,13 +1678,14 @@ nv.models.axis = function() {
                             .style('text-anchor', rotateLabels%360 > 0 ? 'start' : 'end');
                     }
                     axisLabel.enter().append('text').attr('class', 'nv-axislabel');
-                    if (scale.range().length < 2) {
-                        w = 0;
+                    w = 0;
+                    if (scale.range().length === 1) {
+                        w = isOrdinal ? scale.range()[0] * 2 + scale.rangeBand() : 0;
                     } else if (scale.range().length === 2) {
-                        w = scale.range()[1];
-                    } else {
+                        w = isOrdinal ? scale.range()[0] + scale.range()[1] + scale.rangeBand() : scale.range()[1];
+                    } else if ( scale.range().length > 2){
                         w = scale.range()[scale.range().length-1]+(scale.range()[1]-scale.range()[0]);
-                    }
+                    };
                     axisLabel
                         .attr('text-anchor', 'middle')
                         .attr('y', xLabelMargin)
@@ -5456,6 +5459,388 @@ nv.models.candlestickBarChart = function() {
     });
     return chart;
 };
+nv.models.indentedTree = function() {
+
+  //============================================================
+  // Public Variables with Default Settings
+  //------------------------------------------------------------
+
+  var margin = {top: 0, right: 0, bottom: 0, left: 0} //TODO: implement, maybe as margin on the containing div
+    , width = 960
+    , height = 500
+    , color = nv.utils.defaultColor()
+    , id = Math.floor(Math.random() * 10000)
+    , header = true
+    , filterZero = false
+    , noData = "No Data Available."
+    , childIndent = 20
+    , columns = [{key:'key', label: 'Name', type:'text'}] //TODO: consider functions like chart.addColumn, chart.removeColumn, instead of a block like this
+    , tableClass = null
+    , iconOpen = 'icon-plus' //TODO: consider removing this and replacing with a '+' or '-' unless user defines images
+    , iconClose = 'icon-minus'
+    , iconAdd = 'assets/styles/images/add.png'
+    , iconBlock = 'assets/styles/images/block.png'
+    , dispatch = d3.dispatch('elementClick', 'elementDblclick', 'elementMouseover', 'elementMouseout')
+    , getUrl = function(d) { return d.url }
+    ;
+
+  //============================================================
+
+  var idx = 0;
+
+  function chart(selection) {
+    selection.each(function(data) {
+      var i = 0,
+          depth = 1,
+          container = d3.select(this);
+
+      var tree = d3.layout.tree()
+          .children(function(d) { return d.values })
+          .size([height, childIndent]); //Not sure if this is needed now that the result is HTML
+
+      chart.update = function() { container.transition().duration(600).call(chart) };
+
+
+      //------------------------------------------------------------
+      // Display No Data message if there's nothing to show.
+      if (!data[0]) data[0] = {key: noData};
+
+      //------------------------------------------------------------
+
+
+      var nodes = tree.nodes(data[0]);
+
+
+      //------------------------------------------------------------
+      // Setup containers and skeleton of chart
+
+      var wrap = d3.select(this).selectAll('div').data([[nodes]]);
+      var wrapEnter = wrap.enter().append('div').attr('class', 'nvd3 nv-wrap nv-indentedtree');
+      var tableEnter = wrapEnter.append('table');
+      var table = wrap.select('table').attr('width', '100%').attr('class', tableClass);
+
+      //------------------------------------------------------------
+
+
+      if (header) {
+        var thead = tableEnter.append('thead');
+
+        var theadRow1 = thead.append('tr');
+
+        columns.forEach(function(column) {
+          theadRow1
+            .append('th')
+              .attr('width', column.width ? column.width : '10%')
+              .style('text-align', column.type == 'numeric' ? 'right' : 'left')
+            .append('span')
+              .text(column.label);
+        });
+      }
+
+
+      var tbody = table.selectAll('tbody')
+                    .data(function(d) { return d });
+      tbody.enter().append('tbody');
+
+
+
+      //compute max generations
+      depth = d3.max(nodes, function(node) { return node.depth });
+      tree.size([height, depth * childIndent]); //TODO: see if this is necessary at all
+
+
+      // Update the nodes…
+      var node = tbody.selectAll('tr')
+          // .data(function(d) { return d; }, function(d) { return d.id || (d.id == ++i)});
+          .data(function(d) { return d.filter(function(d) { return (filterZero && !d.children) ? filterZero(d) :  true; } )}, function(d,i) { return d.id || (d.id || ++idx)});
+          //.style('display', 'table-row'); //TODO: see if this does anything
+
+      node.exit().remove();
+
+
+      node.select('i.nv-treeicon')
+          .attr("class", icon)
+          .classed('folded', folded)
+          .classed('nv-treeicon', true);
+
+      var nodeEnter = node.enter().append('tr');
+
+
+      columns.forEach(function(column, index) {
+
+        var nodeName = nodeEnter.append('td')
+            .style('padding-left', function(d) { return (index ? 0 : d.depth * childIndent + 12 + (icon(d) ? 0 : 16)) + 'px' }, 'important') //TODO: check why I did the ternary here
+            .style('text-align', column.type == 'numeric' ? 'right' : 'left');
+
+
+        if (index == 0) {
+          nodeName.append('i')
+              .attr("class", icon)
+              .classed('nv-treeicon', true)
+              .classed('nv-folded', folded)
+              .style('width', '14px')
+              .style('height', '14px')
+              .style('padding', '0 1px')
+              .style('margin-right', '5px')
+              .style('display', function(d) { return icon(d) ? 'inline-block' : 'none'; })
+              .on('click', click);
+
+          nodeName.append('i')
+              .classed('nv-treeicon', true)
+              .classed('icon-plus-sign', true)
+              .style('padding', '0 1px')
+              .style('margin-right', '5px')
+              .style('display', function(d) { return iconAd(d) ? 'inline-block' : 'none'; })
+              .on('click', addClick);
+
+          nodeName.append('i')
+              .classed('nv-treeicon', true)
+              .classed('icon-ban-circle', true)
+              .style('margin-right', '10px')
+              .style('display', function(d) { return iconRemove(d) ? 'inline-block' : 'none'; })
+              .on('click', blockClick);
+        }
+
+
+        nodeName.append('span')
+            .attr('class', d3.functor(column.classes) )
+            .text(function(d) { return column.format ? column.format(d) :
+                                        (d[column.key] || '-') });
+
+        if  (column.showCount) {
+          nodeName.append('span')
+              .attr('class', 'nv-childrenCount');
+          node.selectAll('span.nv-childrenCount').text(function(d) {
+                return ((d.values && d.values.length) || (d._values && d._values.length)) ?                                   //If this is a parent
+                    '(' + ((d.values && (d.values.filter(function(d) { return filterZero ? filterZero(d) :  true; }).length)) //If children are in values check its children and filter
+                    || (d._values && d._values.filter(function(d) { return filterZero ? filterZero(d) :  true; }).length)     //Otherwise, do the same, but with the other name, _values...
+                    || 0) + ')'                                                                                               //This is the catch-all in case there are no children after a filter
+                    : ''                                                                                                     //If this is not a parent, just give an empty string
+            });
+        }
+
+        if (column.click)
+          nodeName.select('span').on('click', column.click);
+
+
+        if (column.addClick)
+          nodeName.select('span').on('click', column.addClick);
+
+        if (column.blockClick)
+          nodeName.select('span').on('click', column.blockClick);
+
+      });
+
+
+      node
+        .order()
+        .on('click', function(d) {
+          dispatch.elementClick({
+            row: this, //TODO: decide whether or not this should be consistent with scatter/line events or should be an html link (a href)
+            data: d,
+            pos: [d.x, d.y]
+          });
+        })
+        .on('dblclick', function(d) {
+          dispatch.elementDblclick({
+            row: this,
+            data: d,
+            pos: [d.x, d.y]
+          });
+        })
+        .on('mouseover', function(d) {
+          dispatch.elementMouseover({
+            row: this,
+            data: d,
+            pos: [d.x, d.y]
+          });
+        })
+        .on('mouseout', function(d) {
+          dispatch.elementMouseout({
+            row: this,
+            data: d,
+            pos: [d.x, d.y]
+          });
+        });
+
+
+
+
+      // Toggle children on click.
+      function click(d, _, unshift) {
+        d3.event.stopPropagation();
+
+        if(d3.event.shiftKey && !unshift) {
+          //If you shift-click, it'll toggle fold all the children, instead of itself
+          d3.event.shiftKey = false;
+          d.values && d.values.forEach(function(node){
+            if (node.values || node._values) {
+              click(node, 0, true);
+            }
+          });
+          return true;
+        }
+        if(!hasChildren(d)) {
+          //download file
+          //window.location.href = d.url;
+          return true;
+        }
+        if (d.values) {
+          d._values = d.values;
+          d.values = null;
+        } else {
+          d.values = d._values;
+          d._values = null;
+        }
+        chart.update();
+      }
+
+      // Toggle children on click.
+      function addClick(d, _, unshift) {
+        var controller = UI.__container__.lookup("controller:condition");
+        var boundSend = controller.send.bind(controller);
+        boundSend('addUserSegment', d.id);
+      }
+
+      function blockClick(d, _, unshift) {
+        var controller = UI.__container__.lookup("controller:condition");
+        var boundSend = controller.send.bind(controller);
+        boundSend('blockUserSegment', d.id);
+      }
+
+      function icon(d) {
+        return (d._values && d._values.length) ? iconOpen : (d.values && d.values.length) ? iconClose : '';
+      }
+
+      function iconAd(d) {
+        return (d._values != undefined && d._values.length == 0) ? iconAdd : (d.size > 0) ? iconAdd : '';
+      }
+
+      function iconRemove(d) {
+        return (d._values != undefined && d._values.length == 0) ? iconBlock : (d.size > 0) ? iconAdd : '';
+      }
+
+      function folded(d) {
+        return (d._values && d._values.length);
+      }
+
+      function hasChildren(d) {
+        var values = d.values || d._values;
+
+        return (values && values.length);
+      }
+
+
+    });
+
+    return chart;
+  }
+
+
+  //============================================================
+  // Expose Public Variables
+  //------------------------------------------------------------
+  chart.options = nv.utils.optionsFunc.bind(chart);
+
+  chart.margin = function(_) {
+    if (!arguments.length) return margin;
+    margin.top    = typeof _.top    != 'undefined' ? _.top    : margin.top;
+    margin.right  = typeof _.right  != 'undefined' ? _.right  : margin.right;
+    margin.bottom = typeof _.bottom != 'undefined' ? _.bottom : margin.bottom;
+    margin.left   = typeof _.left   != 'undefined' ? _.left   : margin.left;
+    return chart;
+  };
+
+  chart.width = function(_) {
+    if (!arguments.length) return width;
+    width = _;
+    return chart;
+  };
+
+  chart.height = function(_) {
+    if (!arguments.length) return height;
+    height = _;
+    return chart;
+  };
+
+  chart.color = function(_) {
+    if (!arguments.length) return color;
+    color = nv.utils.getColor(_);
+    scatter.color(color);
+    return chart;
+  };
+
+  chart.id = function(_) {
+    if (!arguments.length) return id;
+    id = _;
+    return chart;
+  };
+
+  chart.header = function(_) {
+    if (!arguments.length) return header;
+    header = _;
+    return chart;
+  };
+
+  chart.noData = function(_) {
+    if (!arguments.length) return noData;
+    noData = _;
+    return chart;
+  };
+
+  chart.filterZero = function(_) {
+    if (!arguments.length) return filterZero;
+    filterZero = _;
+    return chart;
+  };
+
+  chart.columns = function(_) {
+    if (!arguments.length) return columns;
+    columns = _;
+    return chart;
+  };
+
+  chart.tableClass = function(_) {
+    if (!arguments.length) return tableClass;
+    tableClass = _;
+    return chart;
+  };
+
+  chart.iconOpen = function(_){
+     if (!arguments.length) return iconOpen;
+    iconOpen = _;
+    return chart;
+  }
+
+  chart.iconAdd = function(_){
+     if (!arguments.length) return iconAdd;
+    iconAdd = _;
+    return chart;
+  }
+
+  chart.iconBlock = function(_){
+     if (!arguments.length) return iconBlock;
+    iconBlock = _;
+    return chart;
+  }
+
+  chart.iconClose = function(_){
+     if (!arguments.length) return iconClose;
+    iconClose = _;
+    return chart;
+  }
+
+  chart.getUrl = function(_){
+     if (!arguments.length) return getUrl;
+    getUrl = _;
+    return chart;
+  }
+
+  //============================================================
+
+
+  return chart;
+}
 nv.models.legend = function() {
     "use strict";
 
@@ -6510,6 +6895,8 @@ nv.models.linePlusBarChart = function() {
 
     lines.clipEdge(true);
     lines2.interactive(false);
+    // We don't want any points emitted for the focus chart's scatter graph.
+    lines2.pointActive(function(d) { return false });
     xAxis.orient('bottom').tickPadding(5);
     y1Axis.orient('left');
     y2Axis.orient('right');
@@ -7032,6 +7419,12 @@ nv.models.linePlusBarChart = function() {
             margin.bottom = _.bottom !== undefined ? _.bottom : margin.bottom;
             margin.left   = _.left   !== undefined ? _.left   : margin.left;
         }},
+        focusMargin: {get: function(){return margin2;}, set: function(_){
+            margin2.top    = _.top    !== undefined ? _.top    : margin2.top;
+            margin2.right  = _.right  !== undefined ? _.right  : margin2.right;
+            margin2.bottom = _.bottom !== undefined ? _.bottom : margin2.bottom;
+            margin2.left   = _.left   !== undefined ? _.left   : margin2.left;
+        }},
         duration: {get: function(){return transitionDuration;}, set: function(_){
             transitionDuration = _;
         }},
@@ -7101,6 +7494,8 @@ nv.models.lineWithFocusChart = function() {
 
     lines.clipEdge(true).duration(0);
     lines2.interactive(false);
+    // We don't want any points emitted for the focus chart's scatter graph.
+    lines2.pointActive(function(d) { return false });
     xAxis.orient('bottom').tickPadding(5);
     yAxis.orient('left');
     x2Axis.orient('bottom').tickPadding(5);
@@ -7556,6 +7951,12 @@ nv.models.lineWithFocusChart = function() {
             margin.bottom = _.bottom !== undefined ? _.bottom : margin.bottom;
             margin.left   = _.left   !== undefined ? _.left   : margin.left;
         }},
+        focusMargin: {get: function(){return margin2;}, set: function(_){
+            margin2.top    = _.top    !== undefined ? _.top    : margin2.top;
+            margin2.right  = _.right  !== undefined ? _.right  : margin2.right;
+            margin2.bottom = _.bottom !== undefined ? _.bottom : margin2.bottom;
+            margin2.left   = _.left   !== undefined ? _.left   : margin2.left;
+        }},
         color:  {get: function(){return color;}, set: function(_){
             color = nv.utils.getColor(_);
             legend.color(color);
@@ -7615,11 +8016,14 @@ nv.models.multiBar = function() {
         , height = 500
         , x = d3.scale.ordinal()
         , y = d3.scale.linear()
+    , y2 = d3.scale.linear()
         , id = Math.floor(Math.random() * 10000) //Create semi-unique ID in case user doesn't select one
         , container = null
         , getX = function(d) { return d.x }
         , getY = function(d) { return d.y }
+    , getY2 = function(d) { return d.y2 }
         , forceY = [0] // 0 is forced by default.. this makes sense for the majority of bar graphs... user can always do chart.forceY([]) to remove
+    , forceY2 = [0]
         , clipEdge = true
         , stacked = false
         , stackOffset = 'zero' // options include 'silhouette', 'wiggle', 'expand', 'zero', or a custom function
@@ -7630,6 +8034,7 @@ nv.models.multiBar = function() {
         , duration = 500
         , xDomain
         , yDomain
+    , y2Domain
         , xRange
         , yRange
         , groupSpacing = 0.1
@@ -7640,7 +8045,7 @@ nv.models.multiBar = function() {
     // Private Variables
     //------------------------------------------------------------
 
-    var x0, y0 //used to store previous scales
+  var x0, y0, y02 //used to store previous scales
         , renderWatch = nv.utils.renderWatch(dispatch, duration)
         ;
 
@@ -7701,6 +8106,9 @@ nv.models.multiBar = function() {
                 series.values.forEach(function(point) {
                     point.series = i;
                     point.key = series.key;
+          if (point.series == 1){
+            point.y2 = point.y;
+          }
                 });
             });
 
@@ -7730,7 +8138,7 @@ nv.models.multiBar = function() {
             var seriesData = (xDomain && yDomain) ? [] : // if we know xDomain and yDomain, no need to calculate
                 data.map(function(d, idx) {
                     return d.values.map(function(d,i) {
-                        return { x: getX(d,i), y: getY(d,i), y0: d.y0, y1: d.y1, idx:idx }
+                return { x: getX(d,i), y: getY(d,i), y0: d.y0, y1: d.y1, idx: idx, yAxis: d.series + 1  }
                     })
                 });
 
@@ -7751,6 +8159,9 @@ nv.models.multiBar = function() {
             }).concat(forceY)))
             .range(yRange || [availableHeight, 0]);
 
+      y2   .domain(y2Domain || d3.extent(d3.merge(seriesData).map(function(d) { if (d.yAxis == 2) { return d.y + (stacked ? d.y1 : 0) }}).concat(forceY2)))
+          .range([availableHeight, 0]);
+
             // If scale's domain don't have a range, slightly adjust to make one... so a chart can show a single data point
             if (x.domain()[0] === x.domain()[1])
                 x.domain()[0] ?
@@ -7764,6 +8175,7 @@ nv.models.multiBar = function() {
 
             x0 = x0 || x;
             y0 = y0 || y;
+      y02 = y02 || y;
 
             // Setup containers and skeleton of chart
             var wrap = container.selectAll('g.nv-wrap.nv-multibar').data([data]);
@@ -7948,14 +8360,30 @@ nv.models.multiBar = function() {
                     })
                     .attr('width', x.rangeBand() / data.length)
                     .attr('y', function(d,i) {
+              if (d.series == 0){
                         return getY(d,i) < 0 ?
                             y(0) :
                                 y(0) - y(getY(d,i)) < 1 ?
                             y(0) - 1 :
                             y(getY(d,i)) || 0;
+              }
+              else
+              {
+                return getY(d,i) < 0 ?
+                        y2(0) :
+                        y2(0) - y2(getY(d,i)) < 1 ?
+                          y2(0) - 1 :
+                          y2(getY(d,i))
+              }
                     })
                     .attr('height', function(d,i) {
+              if (d.series == 0){
                         return Math.max(Math.abs(y(getY(d,i)) - y(0)),1) || 0;
+              }
+              else
+              {
+                return Math.max(Math.abs(y2(getY2(d,i)) - y2(0)),1);
+              }
                     });
             }
 
@@ -7991,6 +8419,7 @@ nv.models.multiBar = function() {
         y:       {get: function(){return getY;}, set: function(_){getY=_;}},
         xScale:  {get: function(){return x;}, set: function(_){x=_;}},
         yScale:  {get: function(){return y;}, set: function(_){y=_;}},
+        y2Scale:  {get: function(){return y2;}, set: function(_){y=_;}},
         xDomain: {get: function(){return xDomain;}, set: function(_){xDomain=_;}},
         yDomain: {get: function(){return yDomain;}, set: function(_){yDomain=_;}},
         xRange:  {get: function(){return xRange;}, set: function(_){xRange=_;}},
@@ -8027,6 +8456,7 @@ nv.models.multiBar = function() {
 
     return chart;
 };
+
 nv.models.multiBarChart = function() {
     "use strict";
 
@@ -8037,12 +8467,13 @@ nv.models.multiBarChart = function() {
     var multibar = nv.models.multiBar()
         , xAxis = nv.models.axis()
         , yAxis = nv.models.axis()
+        , yAxis2 = nv.models.axis()
         , legend = nv.models.legend()
         , controls = nv.models.legend()
         , tooltip = nv.models.tooltip()
         ;
 
-    var margin = {top: 30, right: 20, bottom: 50, left: 60}
+  var margin = {top: 30, right: 20, bottom: 30, left: 60}
         , width = null
         , height = null
         , color = nv.utils.defaultColor()
@@ -8053,11 +8484,12 @@ nv.models.multiBarChart = function() {
         , showYAxis = true
         , rightAlignYAxis = false
         , reduceXTicks = true // if false a tick will show for every data point
-        , staggerLabels = false
         , rotateLabels = 0
         , x //can be accessed via chart.xScale()
         , y //can be accessed via chart.yScale()
+        , y2 //can be accessed via chart.yScale()
         , state = nv.utils.state()
+        //, state = { stacked: false }
         , defaultState = null
         , noData = null
         , dispatch = d3.dispatch('stateChange', 'changeState', 'renderEnd')
@@ -8079,6 +8511,7 @@ nv.models.multiBarChart = function() {
         .tickFormat(d3.format(',.1f'))
     ;
 
+  yAxis2.orient('right').tickFormat(d3.format(',.1f'));
     tooltip
         .duration(0)
         .valueFormatter(function(d, i) {
@@ -8104,6 +8537,13 @@ nv.models.multiBarChart = function() {
                 stacked: stacked
             };
         }
+    // Additions y2axis
+    if (top > 250 || top < 100){
+      top = 250;
+    }
+
+    nv.tooltip.show([left, top], content, e.value < 0 ? 'n' : 's', null, offsetElement);
+    // End y2axis additions
     };
 
     var stateSetter = function(data) {
@@ -8170,6 +8610,7 @@ nv.models.multiBarChart = function() {
             // Setup Scales
             x = multibar.xScale();
             y = multibar.yScale();
+      y2 = multibar.y2Scale();
 
             // Setup containers and skeleton of chart
             var wrap = container.selectAll('g.nv-wrap.nv-multiBarWithLegend').data([data]);
@@ -8177,7 +8618,8 @@ nv.models.multiBarChart = function() {
             var g = wrap.select('g');
 
             gEnter.append('g').attr('class', 'nv-x nv-axis');
-            gEnter.append('g').attr('class', 'nv-y nv-axis');
+      gEnter.append('g').attr('class', 'nv-y1 nv-axis');
+      gEnter.append('g').attr('class', 'nv-y2 nv-axis');
             gEnter.append('g').attr('class', 'nv-barsWrap');
             gEnter.append('g').attr('class', 'nv-legendWrap');
             gEnter.append('g').attr('class', 'nv-controlsWrap');
@@ -8196,7 +8638,7 @@ nv.models.multiBarChart = function() {
                 }
 
                 g.select('.nv-legendWrap')
-                    .attr('transform', 'translate(' + controlWidth() + ',' + (-margin.top) +')');
+            .attr('transform', 'translate(' + (availableWidth / 2) + ',' + (-margin.top) +')');
             }
 
             // Controls
@@ -8206,7 +8648,7 @@ nv.models.multiBarChart = function() {
                     { key: controlLabels.stacked || 'Stacked', disabled: !multibar.stacked() }
                 ];
 
-                controls.width(controlWidth()).color(['#444', '#444', '#444']);
+        controls.width(180).color(['#444', '#444', '#444']);
                 g.select('.nv-controlsWrap')
                     .datum(controlsData)
                     .attr('transform', 'translate(0,' + (-margin.top) +')')
@@ -8221,13 +8663,11 @@ nv.models.multiBarChart = function() {
 
             // Main Chart Component(s)
             multibar
-                .disabled(data.map(function(series) { return series.disabled }))
                 .width(availableWidth)
                 .height(availableHeight)
                 .color(data.map(function(d,i) {
                     return d.color || color(d, i);
                 }).filter(function(d,i) { return !data[i].disabled }));
-
 
             var barsWrap = g.select('.nv-barsWrap')
                 .datum(data.filter(function(d) { return !d.disabled }));
@@ -8242,8 +8682,7 @@ nv.models.multiBarChart = function() {
                     .tickSize(-availableHeight, 0);
 
                 g.select('.nv-x.nv-axis')
-                    .attr('transform', 'translate(0,' + y.range()[0] + ')');
-                g.select('.nv-x.nv-axis')
+                    .attr('transform', 'translate(0,' + y.range()[0] + ')')
                     .call(xAxis);
 
                 var xTicks = g.select('.nv-x.nv-axis > g').selectAll('g');
@@ -8251,26 +8690,6 @@ nv.models.multiBarChart = function() {
                 xTicks
                     .selectAll('line, text')
                     .style('opacity', 1)
-
-                if (staggerLabels) {
-                    var getTranslate = function(x,y) {
-                        return "translate(" + x + "," + y + ")";
-                    };
-
-                    var staggerUp = 5, staggerDown = 17;  //pixels to stagger by
-                    // Issue #140
-                    xTicks
-                        .selectAll("text")
-                        .attr('transform', function(d,i,j) {
-                            return  getTranslate(0, (j % 2 == 0 ? staggerUp : staggerDown));
-                        });
-
-                    var totalInBetweenTicks = d3.selectAll(".nv-x.nv-axis .nv-wrap g g text")[0].length;
-                    g.selectAll(".nv-x.nv-axis .nv-axisMaxMin text")
-                        .attr("transform", function(d,i) {
-                            return getTranslate(0, (i === 0 || totalInBetweenTicks % 2 !== 0) ? staggerDown : staggerUp);
-                        });
-                }
 
                 if (reduceXTicks)
                     xTicks
@@ -8282,23 +8701,42 @@ nv.models.multiBarChart = function() {
 
                 if(rotateLabels)
                     xTicks
-                        .selectAll('.tick text')
+          .selectAll('text')
                         .attr('transform', 'rotate(' + rotateLabels + ' 0,0)')
-                        .style('text-anchor', rotateLabels > 0 ? 'start' : 'end');
+          .attr('text-anchor', rotateLabels > 0 ? 'start' : 'end');
 
                 g.select('.nv-x.nv-axis').selectAll('g.nv-axisMaxMin text')
                     .style('opacity', 1);
-            }
 
+            }
             if (showYAxis) {
+              // y2 axis mods
                 yAxis
                     .scale(y)
                     ._ticks( nv.utils.calcTicksY(availableHeight/36, data) )
                     .tickSize( -availableWidth, 0);
 
+      yAxis2.scale(y2).ticks( availableHeight / 36 ).tickSize( -availableWidth, 0);
+
                 g.select('.nv-y.nv-axis')
+        .attr('transform', 'translate(' + availableWidth + ',0)');
+
+      d3.transition(g.select('.nv-y1.nv-axis'))
                     .call(yAxis);
+
+      g.select('.nv-y2.nv-axis')
+        .attr('transform', 'translate(' + availableWidth + ',0)');
+
+      d3.transition(g.select('.nv-y2.nv-axis'))
+          .call(yAxis2);
+
+      if (y2.domain().toString() == "0,0")
+      {
+        d3.selectAll('.nv-y2').selectAll('.nv-axisMaxMin').remove();
+      }
+
             }
+
 
             //============================================================
             // Event Handling/Dispatching (in chart's scope)
@@ -8308,7 +8746,8 @@ nv.models.multiBarChart = function() {
                 for (var key in newState)
                     state[key] = newState[key];
                 dispatch.stateChange(state);
-                chart.update();
+
+        selection.transition().call(chart);
             });
 
             controls.dispatch.on('legendClick', function(d,i) {
@@ -8725,7 +9164,7 @@ nv.models.multiBarHorizontal = function() {
                     })
                     .select('rect')
                     .attr('width', function(d,i) {
-                        return Math.abs(y(getY(d,i) + d.y0) - y(d.y0))
+                        return Math.abs(y(getY(d,i) + d.y0) - y(d.y0)) || 0
                     })
                     .attr('height', x.rangeBand() );
             else
@@ -8743,7 +9182,7 @@ nv.models.multiBarHorizontal = function() {
                     .select('rect')
                     .attr('height', x.rangeBand() / data.length )
                     .attr('width', function(d,i) {
-                        return Math.max(Math.abs(y(getY(d,i)) - y(0)),1)
+                        return Math.max(Math.abs(y(getY(d,i)) - y(0)),1) || 0
                     });
 
             //store old scales for use in transitions on update
@@ -9224,6 +9663,9 @@ nv.models.multiChart = function() {
         lines1 = nv.models.line().yScale(yScale1),
         lines2 = nv.models.line().yScale(yScale2),
 
+        scatters1 = nv.models.scatter().yScale(yScale1),
+        scatters2 = nv.models.scatter().yScale(yScale2),
+
         bars1 = nv.models.multiBar().stacked(false).yScale(yScale1),
         bars2 = nv.models.multiBar().stacked(false).yScale(yScale2),
 
@@ -9252,6 +9694,8 @@ nv.models.multiChart = function() {
 
             var dataLines1 = data.filter(function(d) {return d.type == 'line' && d.yAxis == 1});
             var dataLines2 = data.filter(function(d) {return d.type == 'line' && d.yAxis == 2});
+            var dataScatters1 = data.filter(function(d) {return d.type == 'scatter' && d.yAxis == 1});
+            var dataScatters2 = data.filter(function(d) {return d.type == 'scatter' && d.yAxis == 2});
             var dataBars1 =  data.filter(function(d) {return d.type == 'bar'  && d.yAxis == 1});
             var dataBars2 =  data.filter(function(d) {return d.type == 'bar'  && d.yAxis == 2});
             var dataStack1 = data.filter(function(d) {return d.type == 'area' && d.yAxis == 1});
@@ -9290,6 +9734,8 @@ nv.models.multiChart = function() {
             gEnter.append('g').attr('class', 'nv-y2 nv-axis');
             gEnter.append('g').attr('class', 'lines1Wrap');
             gEnter.append('g').attr('class', 'lines2Wrap');
+            gEnter.append('g').attr('class', 'scatters1Wrap');
+            gEnter.append('g').attr('class', 'scatters2Wrap');
             gEnter.append('g').attr('class', 'bars1Wrap');
             gEnter.append('g').attr('class', 'bars2Wrap');
             gEnter.append('g').attr('class', 'stack1Wrap');
@@ -9336,6 +9782,14 @@ nv.models.multiChart = function() {
                 .height(availableHeight)
                 .interpolate(interpolate)
                 .color(color_array.filter(function(d,i) { return !data[i].disabled && data[i].yAxis == 2 && data[i].type == 'line'}));
+            scatters1
+                .width(availableWidth)
+                .height(availableHeight)
+                .color(color_array.filter(function(d,i) { return !data[i].disabled && data[i].yAxis == 1 && data[i].type == 'scatter'}));
+            scatters2
+                .width(availableWidth)
+                .height(availableHeight)
+                .color(color_array.filter(function(d,i) { return !data[i].disabled && data[i].yAxis == 2 && data[i].type == 'scatter'}));
             bars1
                 .width(availableWidth)
                 .height(availableHeight)
@@ -9357,12 +9811,16 @@ nv.models.multiChart = function() {
 
             var lines1Wrap = g.select('.lines1Wrap')
                 .datum(dataLines1.filter(function(d){return !d.disabled}));
+            var scatters1Wrap = g.select('.scatters1Wrap')
+                .datum(dataScatters1.filter(function(d){return !d.disabled}));
             var bars1Wrap = g.select('.bars1Wrap')
                 .datum(dataBars1.filter(function(d){return !d.disabled}));
             var stack1Wrap = g.select('.stack1Wrap')
                 .datum(dataStack1.filter(function(d){return !d.disabled}));
             var lines2Wrap = g.select('.lines2Wrap')
                 .datum(dataLines2.filter(function(d){return !d.disabled}));
+            var scatters2Wrap = g.select('.scatters2Wrap')
+                .datum(dataScatters2.filter(function(d){return !d.disabled}));
             var bars2Wrap = g.select('.bars2Wrap')
                 .datum(dataBars2.filter(function(d){return !d.disabled}));
             var stack2Wrap = g.select('.stack2Wrap')
@@ -9382,10 +9840,12 @@ nv.models.multiChart = function() {
                 .range([0, availableHeight]);
 
             lines1.yDomain(yScale1.domain());
+            scatters1.yDomain(yScale1.domain());
             bars1.yDomain(yScale1.domain());
             stack1.yDomain(yScale1.domain());
 
             lines2.yDomain(yScale2.domain());
+            scatters2.yDomain(yScale2.domain());
             bars2.yDomain(yScale2.domain());
             stack2.yDomain(yScale2.domain());
 
@@ -9397,6 +9857,9 @@ nv.models.multiChart = function() {
 
             if(dataLines1.length){d3.transition(lines1Wrap).call(lines1);}
             if(dataLines2.length){d3.transition(lines2Wrap).call(lines2);}
+
+            if(dataScatters1.length){d3.transition(scatters1Wrap).call(scatters1);}
+            if(dataScatters2.length){d3.transition(scatters2Wrap).call(scatters2);}
 
             xAxis
                 ._ticks( nv.utils.calcTicksX(availableWidth/100, data) )
@@ -9455,6 +9918,23 @@ nv.models.multiChart = function() {
                     .hidden(false);
             }
 
+            function mouseover_scatter(evt) {
+                var yaxis = data[evt.seriesIndex].yAxis === 2 ? yAxis2 : yAxis1;
+                evt.value = evt.point.x;
+                evt.series = {
+                    value: evt.point.y,
+                    color: evt.point.color
+                };
+                tooltip
+                    .duration(100)
+                    .valueFormatter(function(d, i) {
+                        return yaxis.tickFormat()(d, i);
+                    })
+                    .data(evt)
+                    .position(evt.pos)
+                    .hidden(false);
+            }
+
             function mouseover_stack(evt) {
                 var yaxis = data[evt.seriesIndex].yAxis === 2 ? yAxis2 : yAxis1;
                 evt.point['x'] = stack1.x()(evt.point);
@@ -9495,6 +9975,15 @@ nv.models.multiChart = function() {
                 tooltip.hidden(true)
             });
 
+            scatters1.dispatch.on('elementMouseover.tooltip', mouseover_scatter);
+            scatters2.dispatch.on('elementMouseover.tooltip', mouseover_scatter);
+            scatters1.dispatch.on('elementMouseout.tooltip', function(evt) {
+                tooltip.hidden(true)
+            });
+            scatters2.dispatch.on('elementMouseout.tooltip', function(evt) {
+                tooltip.hidden(true)
+            });
+
             stack1.dispatch.on('elementMouseover.tooltip', mouseover_stack);
             stack2.dispatch.on('elementMouseover.tooltip', mouseover_stack);
             stack1.dispatch.on('elementMouseout.tooltip', function(evt) {
@@ -9532,6 +10021,8 @@ nv.models.multiChart = function() {
     chart.dispatch = dispatch;
     chart.lines1 = lines1;
     chart.lines2 = lines2;
+    chart.scatters1 = scatters1;
+    chart.scatters2 = scatters2;
     chart.bars1 = bars1;
     chart.bars2 = bars2;
     chart.stack1 = stack1;
@@ -9579,6 +10070,8 @@ nv.models.multiChart = function() {
             getX = _;
             lines1.x(_);
             lines2.x(_);
+            scatters1.x(_);
+            scatters2.x(_);
             bars1.x(_);
             bars2.x(_);
             stack1.x(_);
@@ -9588,6 +10081,8 @@ nv.models.multiChart = function() {
             getY = _;
             lines1.y(_);
             lines2.y(_);
+            scatters1.y(_);
+            scatters2.y(_);
             stack1.y(_);
             stack2.y(_);
             bars1.y(_);
@@ -11033,7 +11528,7 @@ nv.models.scatter = function() {
                         })
                         .attr("id", function(d,i) {
                             return "nv-path-"+i; })
-                        .attr("clip-path", function(d,i) { return "url(#nv-clip-"+i+")"; })
+                        .attr("clip-path", function(d,i) { return "url(#nv-clip-"+id+"-"+i+")"; })
                         ;
 
                     // good for debugging point hover issues
@@ -11051,7 +11546,7 @@ nv.models.scatter = function() {
                         wrap.select('.nv-point-clips').selectAll("clipPath")
                             .data(vertices)
                             .enter().append("svg:clipPath")
-                            .attr("id", function(d, i) { return "nv-clip-"+i;})
+                            .attr("id", function(d, i) { return "nv-clip-"+id+"-"+i;})
                             .append("svg:circle")
                             .attr('cx', function(d) { return d[0]; })
                             .attr('cy', function(d) { return d[1]; })
@@ -12427,6 +12922,8 @@ nv.models.stackedAreaChart = function() {
         , showYAxis = true
         , rightAlignYAxis = false
         , useInteractiveGuideline = false
+        , showTotalInTooltip = true
+        , totalLabel = 'TOTAL'
         , x //can be accessed via chart.xScale()
         , y //can be accessed via chart.yScale()
         , state = nv.utils.state()
@@ -12744,7 +13241,7 @@ nv.models.stackedAreaChart = function() {
 
             interactiveLayer.dispatch.on('elementMousemove', function(e) {
                 stacked.clearHighlights();
-                var singlePoint, pointIndex, pointXLocation, allData = [];
+                var singlePoint, pointIndex, pointXLocation, allData = [], valueSum = 0;
                 data
                     .filter(function(series, i) {
                         series.seriesIndex = i;
@@ -12769,6 +13266,10 @@ nv.models.stackedAreaChart = function() {
                             color: color(series,series.seriesIndex),
                             stackedValue: point.display
                         });
+
+                        if (showTotalInTooltip && stacked.style() != 'expand') {
+                          valueSum += tooltipValue;
+                        };
                     });
 
                 allData.reverse();
@@ -12792,6 +13293,15 @@ nv.models.stackedAreaChart = function() {
                     });
                     if (indexToHighlight != null)
                         allData[indexToHighlight].highlight = true;
+                }
+
+                //If we are not in 'expand' mode, add a 'Total' row to the tooltip.
+                if (showTotalInTooltip && stacked.style() != 'expand' && allData.length >= 2) {
+                    allData.push({
+                        key: totalLabel,
+                        value: valueSum,
+                        total: true
+                    });
                 }
 
                 var xValue = xAxis.tickFormat()(chart.x()(singlePoint,pointIndex));
@@ -12899,6 +13409,8 @@ nv.models.stackedAreaChart = function() {
         showControls:    {get: function(){return showControls;}, set: function(_){showControls=_;}},
         controlLabels:    {get: function(){return controlLabels;}, set: function(_){controlLabels=_;}},
         controlOptions:    {get: function(){return controlOptions;}, set: function(_){controlOptions=_;}},
+        showTotalInTooltip:      {get: function(){return showTotalInTooltip;}, set: function(_){showTotalInTooltip=_;}},
+        totalLabel:      {get: function(){return totalLabel;}, set: function(_){totalLabel=_;}},
 
         // deprecated options
         tooltips:    {get: function(){return tooltip.enabled();}, set: function(_){

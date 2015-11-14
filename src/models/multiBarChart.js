@@ -224,7 +224,7 @@ nv.models.multiBarChart = function() {
                     .tickSize(-availableHeight, 0);
 
                 g.select('.nv-x.nv-axis')
-                    .attr('transform', 'translate(0,' + y.range()[0] + ')');
+                    .attr('transform', 'translate(0,' + y.range()[0] + ')')
                     .call(xAxis);
 
                 var xTicks = g.select('.nv-x.nv-axis > g').selectAll('g');
@@ -250,6 +250,7 @@ nv.models.multiBarChart = function() {
                 g.select('.nv-x.nv-axis').selectAll('g.nv-axisMaxMin text')
                     .style('opacity', 1);
 
+            }
             if (showYAxis) {
               // y2 axis mods
                 yAxis

@@ -406,7 +406,6 @@ nv.models.multiBar = function() {
 
     chart.options = nv.utils.optionsFunc.bind(chart);
 
-<<<<<<< HEAD
     chart._options = Object.create({}, {
         // simple options, just get/set the necessary values
         width:   {get: function(){return width;}, set: function(_){width=_;}},
