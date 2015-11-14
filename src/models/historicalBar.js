@@ -98,6 +98,9 @@ nv.models.historicalBar = function() {
 
             bars.enter().append('rect')
                 .attr('x', 0 )
+                 .attr('visibility', function(d,i) {
+                                       return getY(d,i) !== null ? 'visible' : 'hidden';
+                                                       })
                 .attr('y', function(d,i) {  return nv.utils.NaNtoZero(y(Math.max(0, getY(d,i)))) })
                 .attr('height', function(d,i) { return nv.utils.NaNtoZero(Math.abs(y(getY(d,i)) - y(0))) })
                 .attr('transform', function(d,i) { return 'translate(' + (x(getX(d,i)) - availableWidth / data[0].values.length * .45) + ',0)'; })
