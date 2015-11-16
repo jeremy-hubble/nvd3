@@ -84,8 +84,10 @@ describe 'NVD3', ->
             '.nv-controlsWrap'
           ]
 
+          console.log "FOO"
           for cssClass in cssClasses
             do (cssClass) ->
+              console.log cssClass
               should.exist builder.$("g.nvd3.nv-multiBarWithLegend #{cssClass}")[0]
 
 

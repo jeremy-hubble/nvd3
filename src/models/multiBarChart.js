@@ -26,10 +26,11 @@ nv.models.multiBarChart = function() {
         , showYAxis = true
         , rightAlignYAxis = false
         , reduceXTicks = true // if false a tick will show for every data point
+        , staggerLabels = false
         , rotateLabels = 0
         , x //can be accessed via chart.xScale()
         , y //can be accessed via chart.yScale()
-        , y2 //can be accessed via chart.yScale()
+        , y2 //can be accessed via chart.y2Scale()
         , state = nv.utils.state()
         //, state = { stacked: false }
         , defaultState = null
@@ -161,7 +162,7 @@ nv.models.multiBarChart = function() {
             var g = wrap.select('g');
 
             gEnter.append('g').attr('class', 'nv-x nv-axis');
-      gEnter.append('g').attr('class', 'nv-y1 nv-axis');
+      gEnter.append('g').attr('class', 'nv-y nv-axis');
       gEnter.append('g').attr('class', 'nv-y2 nv-axis');
             gEnter.append('g').attr('class', 'nv-barsWrap');
             gEnter.append('g').attr('class', 'nv-legendWrap');
@@ -267,10 +268,10 @@ nv.models.multiBarChart = function() {
                 g.select('.nv-y.nv-axis')
                     .attr('transform', 'translate(' + availableWidth + ',0)');
 
-                d3.transition(g.select('.nv-y1.nv-axis'))
+                d3.transition(g.select('.nv-y.nv-axis'))
                     .call(yAxis);
 
-                g.select('.nv-y2.nv-axis')
+                g.select('.nv-y.nv-axis')
                     .attr('transform', 'translate(' + availableWidth + ',0)');
 
                 d3.transition(g.select('.nv-y2.nv-axis'))

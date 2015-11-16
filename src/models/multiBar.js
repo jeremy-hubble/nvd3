@@ -381,7 +381,7 @@ nv.models.multiBar = function() {
                         y2(0) :
                         y2(0) - y2(getY(d,i)) < 1 ?
                           y2(0) - 1 :
-                          y2(getY(d,i))
+                          y2(getY(d,i)) || 0
               }
                     })
                     .attr('height', function(d,i) {
@@ -390,7 +390,7 @@ nv.models.multiBar = function() {
               }
               else
               {
-                return Math.max(Math.abs(y2(getY2(d,i)) - y2(0)),1);
+                return Math.max(Math.abs(y2(getY2(d,i)) - y2(0)),1) || 0;
               }
                     });
             }
