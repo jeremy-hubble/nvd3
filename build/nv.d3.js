@@ -1,4 +1,4 @@
-/* nvd3 version 1.8.1 (https://github.com/novus/nvd3) 2015-11-13 */
+/* nvd3 version 1.8.1 (https://github.com/novus/nvd3) 2015-11-16 */
 (function(){
 
 // set up main nv object
@@ -8162,8 +8162,21 @@ nv.models.multiBar = function() {
             }).concat(forceY)))
             .range(yRange || [availableHeight, 0]);
 
-      y2   .domain(y2Domain || d3.extent(d3.merge(seriesData).map(function(d) { if (d.yAxis == 2) { return d.y + (stacked ? d.y1 : 0) }}).concat(forceY2)))
-          .range([availableHeight, 0]);
+            y2.domain(y2Domain || d3.extent(d3.merge(seriesData).map(function(d) { 
+              if (d.yAxis == 2) { 
+                var domain = d.y;
+                // increase the domain range if this series is stackable
+                if (stacked && !data[d.idx].nonStackable) {
+                    if (d.y > 0){
+                        domain = d.y1
+                    } else {
+                        domain = d.y1 + d.y
+                    }
+                }
+                return domain;
+              }
+            }).concat(forceY2)))
+            .range([availableHeight, 0]);
 
             // If scale's domain don't have a range, slightly adjust to make one... so a chart can show a single data point
             if (x.domain()[0] === x.domain()[1])
@@ -8565,6 +8578,7 @@ nv.models.multiBarChart = function() {
         renderWatch.models(multibar);
         if (showXAxis) renderWatch.models(xAxis);
         if (showYAxis) renderWatch.models(yAxis);
+        if (showYAxis) renderWatch.models(yAxis2);
 
         selection.each(function(data) {
             var container = d3.select(this),
@@ -8719,24 +8733,26 @@ nv.models.multiBarChart = function() {
                     ._ticks( nv.utils.calcTicksY(availableHeight/36, data) )
                     .tickSize( -availableWidth, 0);
 
-      yAxis2.scale(y2).ticks( availableHeight / 36 ).tickSize( -availableWidth, 0);
+                yAxis2
+                    .scale(y2)
+                    ._ticks( nv.utils.calcTicksY(availableHeight/36, data) )
+                    .tickSize( -availableWidth, 0);
 
                 g.select('.nv-y.nv-axis')
-        .attr('transform', 'translate(' + availableWidth + ',0)');
+                    .attr('transform', 'translate(' + availableWidth + ',0)');
 
-      d3.transition(g.select('.nv-y1.nv-axis'))
+                d3.transition(g.select('.nv-y1.nv-axis'))
                     .call(yAxis);
 
-      g.select('.nv-y2.nv-axis')
-        .attr('transform', 'translate(' + availableWidth + ',0)');
+                g.select('.nv-y2.nv-axis')
+                    .attr('transform', 'translate(' + availableWidth + ',0)');
 
-      d3.transition(g.select('.nv-y2.nv-axis'))
-          .call(yAxis2);
+                d3.transition(g.select('.nv-y2.nv-axis'))
+                    .call(yAxis2);
 
-      if (y2.domain().toString() == "0,0")
-      {
-        d3.selectAll('.nv-y2').selectAll('.nv-axisMaxMin').remove();
-      }
+                if (y2.domain().toString() == "0,0") {
+                    d3.selectAll('.nv-y2').selectAll('.nv-axisMaxMin').remove();
+                }
 
             }
 
@@ -8831,6 +8847,7 @@ nv.models.multiBarChart = function() {
     chart.controls = controls;
     chart.xAxis = xAxis;
     chart.yAxis = yAxis;
+    chart.yAxis2 = yAxis2;
     chart.state = state;
     chart.tooltip = tooltip;
 
@@ -8875,6 +8892,7 @@ nv.models.multiBarChart = function() {
             multibar.duration(duration);
             xAxis.duration(duration);
             yAxis.duration(duration);
+            yAxis2.duration(duration);
             renderWatch.reset(duration);
         }},
         color:  {get: function(){return color;}, set: function(_){

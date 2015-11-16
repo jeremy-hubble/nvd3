@@ -104,6 +104,7 @@ nv.models.multiBarChart = function() {
         renderWatch.models(multibar);
         if (showXAxis) renderWatch.models(xAxis);
         if (showYAxis) renderWatch.models(yAxis);
+        if (showYAxis) renderWatch.models(yAxis2);
 
         selection.each(function(data) {
             var container = d3.select(this),
@@ -258,24 +259,26 @@ nv.models.multiBarChart = function() {
                     ._ticks( nv.utils.calcTicksY(availableHeight/36, data) )
                     .tickSize( -availableWidth, 0);
 
-      yAxis2.scale(y2).ticks( availableHeight / 36 ).tickSize( -availableWidth, 0);
+                yAxis2
+                    .scale(y2)
+                    ._ticks( nv.utils.calcTicksY(availableHeight/36, data) )
+                    .tickSize( -availableWidth, 0);
 
                 g.select('.nv-y.nv-axis')
-        .attr('transform', 'translate(' + availableWidth + ',0)');
+                    .attr('transform', 'translate(' + availableWidth + ',0)');
 
-      d3.transition(g.select('.nv-y1.nv-axis'))
+                d3.transition(g.select('.nv-y1.nv-axis'))
                     .call(yAxis);
 
-      g.select('.nv-y2.nv-axis')
-        .attr('transform', 'translate(' + availableWidth + ',0)');
+                g.select('.nv-y2.nv-axis')
+                    .attr('transform', 'translate(' + availableWidth + ',0)');
 
-      d3.transition(g.select('.nv-y2.nv-axis'))
-          .call(yAxis2);
+                d3.transition(g.select('.nv-y2.nv-axis'))
+                    .call(yAxis2);
 
-      if (y2.domain().toString() == "0,0")
-      {
-        d3.selectAll('.nv-y2').selectAll('.nv-axisMaxMin').remove();
-      }
+                if (y2.domain().toString() == "0,0") {
+                    d3.selectAll('.nv-y2').selectAll('.nv-axisMaxMin').remove();
+                }
 
             }
 
@@ -370,6 +373,7 @@ nv.models.multiBarChart = function() {
     chart.controls = controls;
     chart.xAxis = xAxis;
     chart.yAxis = yAxis;
+    chart.yAxis2 = yAxis2;
     chart.state = state;
     chart.tooltip = tooltip;
 
@@ -414,6 +418,7 @@ nv.models.multiBarChart = function() {
             multibar.duration(duration);
             xAxis.duration(duration);
             yAxis.duration(duration);
+            yAxis2.duration(duration);
             renderWatch.reset(duration);
         }},
         color:  {get: function(){return color;}, set: function(_){

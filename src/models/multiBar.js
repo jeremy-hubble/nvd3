@@ -154,8 +154,21 @@ nv.models.multiBar = function() {
             }).concat(forceY)))
             .range(yRange || [availableHeight, 0]);
 
-      y2   .domain(y2Domain || d3.extent(d3.merge(seriesData).map(function(d) { if (d.yAxis == 2) { return d.y + (stacked ? d.y1 : 0) }}).concat(forceY2)))
-          .range([availableHeight, 0]);
+            y2.domain(y2Domain || d3.extent(d3.merge(seriesData).map(function(d) { 
+              if (d.yAxis == 2) { 
+                var domain = d.y;
+                // increase the domain range if this series is stackable
+                if (stacked && !data[d.idx].nonStackable) {
+                    if (d.y > 0){
+                        domain = d.y1
+                    } else {
+                        domain = d.y1 + d.y
+                    }
+                }
+                return domain;
+              }
+            }).concat(forceY2)))
+            .range([availableHeight, 0]);
 
             // If scale's domain don't have a range, slightly adjust to make one... so a chart can show a single data point
             if (x.domain()[0] === x.domain()[1])
