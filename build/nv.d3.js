@@ -8636,8 +8636,8 @@ nv.models.multiBarChart = function() {
             var g = wrap.select('g');
 
             gEnter.append('g').attr('class', 'nv-x nv-axis');
-      gEnter.append('g').attr('class', 'nv-y nv-axis');
-      gEnter.append('g').attr('class', 'nv-y2 nv-axis');
+            gEnter.append('g').attr('class', 'nv-y1 nv-axis');
+            gEnter.append('g').attr('class', 'nv-y2 nv-axis');
             gEnter.append('g').attr('class', 'nv-barsWrap');
             gEnter.append('g').attr('class', 'nv-legendWrap');
             gEnter.append('g').attr('class', 'nv-controlsWrap');
@@ -8675,7 +8675,7 @@ nv.models.multiBarChart = function() {
 
             wrap.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
             if (rightAlignYAxis) {
-                g.select(".nv-y.nv-axis")
+                g.select(".nv-y1.nv-axis")
                     .attr("transform", "translate(" + availableWidth + ",0)");
             }
 
@@ -8739,13 +8739,15 @@ nv.models.multiBarChart = function() {
                     ._ticks( nv.utils.calcTicksY(availableHeight/36, data) )
                     .tickSize( -availableWidth, 0);
 
-                g.select('.nv-y.nv-axis')
+                /*
+                g.select('.nv-y1.nv-axis')
                     .attr('transform', 'translate(' + availableWidth + ',0)');
+                */
 
-                d3.transition(g.select('.nv-y.nv-axis'))
+                d3.transition(g.select('.nv-y1.nv-axis'))
                     .call(yAxis);
 
-                g.select('.nv-y.nv-axis')
+                g.select('.nv-y2.nv-axis')
                     .attr('transform', 'translate(' + availableWidth + ',0)');
 
                 d3.transition(g.select('.nv-y2.nv-axis'))

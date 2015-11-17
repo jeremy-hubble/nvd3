@@ -77,17 +77,15 @@ describe 'NVD3', ->
         it 'has correct structure', ->
           cssClasses = [
             '.nv-x.nv-axis'
-            '.nv-y.nv-axis'
+            '.nv-y1.nv-axis'
             '.nv-barsWrap'
             '.nv-multibar'
             '.nv-legendWrap'
             '.nv-controlsWrap'
           ]
 
-          console.log "FOO"
           for cssClass in cssClasses
             do (cssClass) ->
-              console.log cssClass
               should.exist builder.$("g.nvd3.nv-multiBarWithLegend #{cssClass}")[0]
 
 
