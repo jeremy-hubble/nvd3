@@ -75,7 +75,7 @@ describe 'NVD3', ->
         it 'has correct structure', ->
           cssClasses = [
             '.nv-x.nv-axis'
-            '.nv-y.nv-axis'
+            '.nv-y1.nv-axis'
             '.nv-barsWrap'
             '.nv-multibar'
             '.nv-legendWrap'
