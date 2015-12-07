@@ -140,6 +140,8 @@ nv.models.multiBar = function() {
                 .rangeBands(xRange || [0, availableWidth], groupSpacing);
 
             y.domain(yDomain || d3.extent(d3.merge(seriesData).map(function(d) {
+              // don't include second axis data in first axis (prevents too small first bar)
+              if (d.yAxis != 2) {
                 var domain = d.y;
                 // increase the domain range if this series is stackable
                 if (stacked && !data[d.idx].nonStackable) {
@@ -150,6 +152,7 @@ nv.models.multiBar = function() {
                     }
                 }
                 return domain;
+              }
             }).concat(forceY)))
             .range(yRange || [availableHeight, 0]);
 
