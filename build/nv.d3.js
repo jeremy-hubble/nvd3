@@ -1,4 +1,4 @@
-/* nvd3 version 1.8.1-dev (https://github.com/novus/nvd3) 2015-12-07 */
+/* nvd3 version 1.8.1-dev (https://github.com/novus/nvd3) 2015-12-09 */
 (function(){
 
 // set up main nv object
@@ -6825,13 +6825,13 @@ nv.models.linePlusBarChart = function() {
     //------------------------------------------------------------
 
     var getBarsAxis = function() {
-        return switchYAxisOrder
+        return !switchYAxisOrder
             ? { main: y1Axis, focus: y3Axis }
             : { main: y2Axis, focus: y4Axis }
     }
 
     var getLinesAxis = function() {
-        return switchYAxisOrder
+        return !!switchYAxisOrder
             ? { main: y2Axis, focus: y4Axis }
             : { main: y1Axis, focus: y3Axis }
     }
@@ -7497,10 +7497,8 @@ nv.models.multiBar = function() {
                 series.values.forEach(function(point) {
                     point.series = i;
                     point.key = series.key;
-                    console.log("SERIES:",series,i);
                     if (point.series == 1){
                       point.y2 = point.y;
-                      console.log("Y2:"+point.y2);
                     }
                 });
             });
@@ -7550,14 +7548,12 @@ nv.models.multiBar = function() {
                         domain = d.y1 + d.y
                     }
                 }
-                console.log("DOMAIN(y):",domain);
                 return domain;
               }
             }).concat(forceY)))
             .range(yRange || [availableHeight, 0]);
 
             y2.domain(y2Domain || d3.extent(d3.merge(seriesData).map(function(d) { 
-              console.log("YAX:",d.yAxis);
               if (d.yAxis == 2) { 
                 var domain = d.y;
                 // increase the domain range if this series is stackable
@@ -7568,7 +7564,6 @@ nv.models.multiBar = function() {
                         domain = d.y1 + d.y
                     }
                 }
-                console.log("y2domain:",domain);
                 return domain;
               }
             }).concat(forceY2)))
