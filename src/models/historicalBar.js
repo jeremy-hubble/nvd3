@@ -108,6 +108,7 @@ nv.models.historicalBar = function() {
                     if (!interactive) return;
                     d3.select(this).classed('hover', true);
                     dispatch.elementMouseover({
+                        sourceData: data,
                         data: d,
                         index: i,
                         color: d3.select(this).style("fill")

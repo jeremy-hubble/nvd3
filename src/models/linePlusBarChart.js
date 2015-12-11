@@ -69,16 +69,17 @@ nv.models.linePlusBarChart = function() {
     // Private Variables
     //------------------------------------------------------------
 
+            // y1 = bars - switch y1 = lines
     var getBarsAxis = function() {
-        return !switchYAxisOrder
-            ? { main: y1Axis, focus: y3Axis }
-            : { main: y2Axis, focus: y4Axis }
+        return switchYAxisOrder
+            ? { main: y2Axis, focus: y4Axis }
+            : { main: y1Axis, focus: y3Axis }
     }
 
     var getLinesAxis = function() {
-        return !!switchYAxisOrder
-            ? { main: y2Axis, focus: y4Axis }
-            : { main: y1Axis, focus: y3Axis }
+        return switchYAxisOrder
+            ? { main: y1Axis, focus: y3Axis }
+            : { main: y2Axis, focus: y4Axis }
     }
 
     var stateGetter = function(data) {
@@ -152,6 +153,7 @@ nv.models.linePlusBarChart = function() {
             x2 = x2Axis.scale();
 
             // select the scales and series based on the position of the yAxis
+            // y1 = bars - switch y1 = lines
             y1 = switchYAxisOrder ? lines.yScale() : bars.yScale();
             y2 = switchYAxisOrder ? bars.yScale() : lines.yScale();
             y3 = switchYAxisOrder ? lines2.yScale() : bars2.yScale();
@@ -216,6 +218,7 @@ nv.models.linePlusBarChart = function() {
                 g.select('.nv-legendWrap')
                     .datum(data.map(function(series) {
                         series.originalKey = series.originalKey === undefined ? series.key : series.originalKey;
+            // y1 = bars - switch y1 = lines
                         if(switchYAxisOrder) {
                             series.key = series.originalKey + (series.bar ? legendRightAxisHint : legendLeftAxisHint);
                         } else {
@@ -452,6 +455,7 @@ nv.models.linePlusBarChart = function() {
                 );
 
                 // Update Main (Focus) X Axis
+            // y1 = bars - switch y1 = lines
                 if (dataBars.length && !switchYAxisOrder) {
                     x = bars.xScale();
                 } else {
@@ -489,6 +493,7 @@ nv.models.linePlusBarChart = function() {
                 var barsOpacity = dataBars.length ? 1 : 0;
                 var linesOpacity = dataLines.length && !allDisabled(dataLines) ? 1 : 0;
 
+            // y1 = bars - switch y1 = lines
                 var y1Opacity = switchYAxisOrder ? linesOpacity : barsOpacity;
                 var y2Opacity = switchYAxisOrder ? barsOpacity : linesOpacity;
 
@@ -529,11 +534,14 @@ nv.models.linePlusBarChart = function() {
         tooltip.hidden(true)
     });
 
-    bars.dispatch.on('elementMouseover.tooltip', function(evt) {
+    bars.dispatch.on('elementMouseover.tooltip', function(evt, b) {
+        // Manually construct the event by having historicalBar pass in the sourceData
         evt.value = chart.x()(evt.data);
         evt['series'] = {
             value: chart.y()(evt.data),
-            color: evt.color
+            color: evt.color,
+            key: evt.sourceData[0].key,
+            values: evt.sourceData[0].values
         };
         tooltip
             .duration(0)
@@ -548,10 +556,11 @@ nv.models.linePlusBarChart = function() {
         tooltip.hidden(true);
     });
 
+    /*
     bars.dispatch.on('elementMousemove.tooltip', function(evt) {
-        tooltip();
+          tooltip();
     });
-
+*/
     //============================================================
 
 
@@ -624,6 +633,7 @@ nv.models.linePlusBarChart = function() {
             bars.y(_);
             bars2.y(_);
         }},
+            // y1 = bars - switch y1 = lines
         switchYAxisOrder:    {get: function(){return switchYAxisOrder;}, set: function(_){
             // Switch the tick format for the yAxis
             if(switchYAxisOrder !== _) {
